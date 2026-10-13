@@ -1,0 +1,24 @@
+{
+    "fileFormatVersion": "1",
+    "parameterSets": {
+        "New set 1": {
+            "EQUIP_FIX": "pin",
+            "EQUIP_SEPARATE": "true",
+            "FRAME_ONE_PIECE": "false",
+            "PAINT_SCHEME": "MILW",
+            "PART": "assembly",
+            "SECTION": "1",
+            "SHOW_BODY": "true",
+            "SHOW_COUPLERS": "true",
+            "SHOW_EQUIPMENT": "true",
+            "SHOW_FLOOR": "true",
+            "SHOW_INTERIOR": "true",
+            "SHOW_LETTERING": "true",
+            "SHOW_LIGHT_BOX": "true",
+            "SHOW_ROOF": "false",
+            "SHOW_STEPS": "true",
+            "SHOW_TRUCKS": "true",
+            "SHOW_WINDOWS": "true"
+        }
+    }
+}
