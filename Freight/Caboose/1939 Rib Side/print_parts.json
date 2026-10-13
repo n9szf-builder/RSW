@@ -1,0 +1,18 @@
+{
+  "title": "Milwaukee Road 1939 rib side bay window caboose",
+  "slug": "MIL_Rib_1939_Caboose",
+  "review": {"verified": true, "code": "TDQ-160", "note": "Reviewed by Tom 7 Oct 2026 - looks good. Body printed; the printed trucks are new and not test printed yet (TDQ-193)."},
+  "picture": "notes/Caboose_on_trucks.png",
+  "docs": ["notes/MIL_Rib_1939_Parts_List.pdf"],
+  "scales": {
+    "G": {
+      "scad": "scad/MIL_Rib_1939_caboose_Main.scad",
+      "mode": "parts",
+      "var": "part",
+      "printers": [["P1S", "As drawn - one piece per part (the body is about 294 mm long)"]],
+      "parts": [["body", 1], ["bay", 2], ["toolbox", 1], ["roof", 1], ["roofwalk", 1], ["underframe", 1], ["deck", 2],
+                ["step", 4], ["railing", 2], ["brakewheel", 2], ["ladder", 2], ["smokestack", 1], ["lanternjack", 1],
+                ["glazing", 1], ["restroom", 1], ["truck_sideframe", 4], ["truck_bolster", 2], ["truck_wheel", 8]]
+    }
+  }
+}
