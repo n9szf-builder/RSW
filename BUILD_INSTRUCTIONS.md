@@ -6,6 +6,8 @@ Every car has a stand-alone OpenSCAD file in three scales. Find it at:
 
 Each file is a single file. It needs no libraries and no other files.
 
+Each car's `Kit` folder also holds its own illustrated **How to build** PDF (`Kit/How to build - <car>.pdf`). Start there for the part list, print order and assembly steps.
+
 ## What you need
 - **OpenSCAD 2025 or newer.** Use the Manifold engine (Edit > Preferences > Features > manifold), which makes renders fast.
 - A slicer for your printer.
