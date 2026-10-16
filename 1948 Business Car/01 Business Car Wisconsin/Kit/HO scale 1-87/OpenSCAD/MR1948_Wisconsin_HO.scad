@@ -648,9 +648,18 @@ function mr_sky_rr(x, o) = max(RR - o - SKY_DROP * pow(max(0, min(1, (x - SKY_XD
 // The tail is built in horizontal slices: at each height the end is a half-ellipse of TAIL_FT
 // (the plan rounding) whose tip sits on the side-elevation outline at that height, so the side
 // view follows the drawing, the plan is round at every level and the roof keeps its section.
-NOSE_ON = END_B == "skytop" && len(SKY_TOP_PTS) > 1;
-NOSE_X0 = NOSE_ON ? ft(SKY_TOP_PTS[0][0]) - TAIL - ft(1) : L;
-NOSE_ZX = NOSE_ON ? [for (i = [len(SKY_TOP_PTS) - 1:-1:0]) [SKY_TOP_PTS[i][1], SKY_TOP_PTS[i][0]]] : [[0, 0]];
+// Beaver tail side outline (END_B = "round"), TDQ-272: same slices as the Skytop nose.
+// The settings below are optional in a car's lib - a car without them keeps the plain half-round tail.
+TAIL_PTS_L   = is_undef(TAIL_PTS)       ? [] : TAIL_PTS;         // [[x_ft, height_ft], ...] roof -> side sill
+REAR_WINS_L  = is_undef(REAR_WINS)      ? [] : REAR_WINS;        // [[y_centre_ft, w_in, z0_ft, z1_ft], ...]
+TFIN_Z_L     = is_undef(TAIL_FIN_Z_IN)  ? [] : TAIL_FIN_Z_IN;    // bottom of each tail fin above the side sill
+TFIN_H_L     = is_undef(TAIL_FIN_H_IN)  ? 1.5 : TAIL_FIN_H_IN;   // fin thickness
+TFIN_D_L     = is_undef(TAIL_FIN_D_IN)  ? 3 : TAIL_FIN_D_IN;     // how far a fin stands off the skin
+TFIN_X0_L    = is_undef(TAIL_FIN_X0_FT) ? 0 : TAIL_FIN_X0_FT;    // fins start here
+NOSE_SRC = END_B == "skytop" ? SKY_TOP_PTS : (END_B == "round" ? TAIL_PTS_L : []);
+NOSE_ON = len(NOSE_SRC) > 1;
+NOSE_X0 = NOSE_ON ? ft(NOSE_SRC[0][0]) - TAIL - ft(1) : L;
+NOSE_ZX = NOSE_ON ? [for (i = [len(NOSE_SRC) - 1:-1:0]) [NOSE_SRC[i][1], NOSE_SRC[i][0]]] : [[0, 0]];
 function mr_nose_xmax(z) = min(L, ft(lookup(z / ft(1), NOSE_ZX)));      // outline tip at height z (mm)
 module mr_nose_slice(z, o) {
     xt = min(mr_nose_xmax(z + o), L) - o;                                 // inner skins drop by o as well
@@ -673,6 +682,9 @@ module mr_body_solid(o = 0, zb = 0) {
         translate([-1, 0, 0]) rotate([90, 0, 90])
             linear_extrude(L + 2) mr_profile(W - 2*o, HS, RR - o, zb);
         mr_nose_plan(o, zb);
+        // A-end sheet for a beaver tail with an outline: start at x = o, as mr_plan does (TDQ-272).
+        // (Skytop cars keep x = -1 here, unchanged - see TDQ in Research_Notes about their A end.)
+        translate([END_B == "round" ? o : -5, -W, zb - 2]) cube([L + 10, 2*W, TOP + 10]);
     }
     else intersection() {
         if (SKY_DROP <= 0)
@@ -746,13 +758,26 @@ module mr_joint_pins() {
 // ---------- openings and detail ----------
 // window: [x_ft, w_in, h_in, sill_in, side, shape]
 //   side : 0 both sides, -1 only the -Y side, 1 only the +Y side
-//   shape: 0 rectangle (rounded corners), 1 round porthole (diameter w), 2 oval (rounded ends)
+//   shape: 0 rectangle (rounded corners), 1 round porthole (diameter w), 2 oval (rounded ends),
+//          3 arched top (1934 cars), 4 / 5 Kuhler fin window rounded toward the B / A end (1938 Beaver Tail)
 module mr_opening2d(w, h, shape) {
     if (shape == 1) translate([0, w/2]) circle(d = w, $fn = 40);
     else if (shape == 2) hull() for (e = [-1, 1]) translate([e * (w - h)/2, h/2]) circle(d = h, $fn = 32);
     else if (shape == 3) hull() {   // arched top (1934 cars): square at the bottom, oval at the top
         translate([0, (h - w * 0.2) / 2]) offset(r = w * 0.05) offset(delta = -w * 0.05) square([w, h - w * 0.2], center = true);
         translate([0, h - w * 0.2]) scale([1, 0.4]) circle(d = w, $fn = 48);
+    }
+    else if (shape == 4 || shape == 5) mirror([shape == 5 ? 1 : 0, 0]) intersection() {
+        // Kuhler fin window (1938 finned Beaver Tail, Shops book p. 61): square at one end; the other end
+        // a small radius at the head and a long sweep down to the sill
+        translate([-w/2, 0]) square([w, h]);
+        hull() {
+            rs = min(w, h) * 0.12; rt = h * 0.28; rb = h * 0.85;
+            translate([-w/2 + rs, rs]) circle(r = rs, $fn = 16);
+            translate([-w/2 + rs, h - rs]) circle(r = rs, $fn = 16);
+            translate([w/2 - rt, h - rt]) circle(r = rt, $fn = 32);
+            translate([w/2 - rb * 1.15, rb]) scale([1.15, 1]) circle(r = rb, $fn = 64);
+        }
     }
     else translate([0, h/2]) offset(r = min(w, h) * 0.12) offset(delta = -min(w, h) * 0.12) square([w, h], center = true);
 }
@@ -766,6 +791,13 @@ module mr_window_cuts() {
         translate([ft(w[0]), y0 + yl, inch(w[3])]) rotate([90, 0, 0])
             linear_extrude(yl) mr_opening2d(inch(w[1]), inch(w[2]), shape);
     }
+    if (NOSE_ON && END_B == "round")                 // windows in the sloped beaver tail (REAR_WINS)
+        for (r = REAR_WINS_L) {
+            ww = inch(r[1]); z0 = ft(r[2]); z1 = ft(r[3]);
+            translate([mr_nose_xmax(z1) - ft(2), ft(r[0]), z0]) rotate([0, 90, 0]) rotate([0, 0, 90])
+                linear_extrude(L) translate([-ww/2, 0])
+                    offset(r = ww * 0.1) offset(delta = -ww * 0.1) square([ww, z1 - z0]);
+        }
 }
 
 // ---------- WINDOW INSERTS ----------
@@ -1081,7 +1113,7 @@ module mr_diaphragms(grow = 0) {  // raised frame around each end door
 }
 
 FL_X0 = ft(1.5);
-FL_X1 = L - (TAIL > 0 ? TAIL : ft(1.5));
+FL_X1 = (NOSE_ON && END_B == "round") ? ft(NOSE_SRC[0][0]) - ft(1) : L - (TAIL > 0 ? TAIL : ft(1.5));   // round tail with an outline: mr_fins carries the ribs on
 
 FLUTE_DOOR_GAP_IN = 2;     // ribs / flutes stop this far short of a side door (door frame)
 module mr_flutes(add) {
@@ -1103,14 +1135,38 @@ module mr_flutes(add) {
         }
 }
 
+// 1938 Kuhler finned Beaver Tail (TDQ-272): the side ribs carry on round the tail, bending down to
+// follow its outline, and deep fins wrap the tail over the rear windows (Mitchell builder photo, 1938).
+// Ribs: bands parallel to the side outline, FLUTE_D proud. Fins: level bands, TAIL_FIN_D_IN proud.
+// Only for END_B = "round" with a TAIL_PTS outline; the straight ribs (mr_flutes) stop where these begin.
+function mr_tail_sil() = concat(
+    [[-ft(200), -ft(20)], [-ft(200), HT]],
+    [for (p = NOSE_SRC) [ft(p[0]), ft(p[1])]],
+    [[ft(NOSE_SRC[len(NOSE_SRC) - 1][0]) + 1, -ft(20)]]);
+module mr_tail_bands(zs, h, d, x0) {
+    intersection() {
+        difference() { mr_body_solid(-d, 0); mr_body_solid(WALL / 2, -5); }   // reaches half into the wall: always fused to it
+        translate([x0, -W, -1]) cube([L + 5 - x0, 2*W, TOP + 5]);
+        rotate([90, 0, 0]) linear_extrude(2*W, center = true)
+            for (zb = zs) difference() {
+                offset(delta = -(HT - zb - h)) polygon(mr_tail_sil());
+                offset(delta = -(HT - zb)) polygon(mr_tail_sil());
+            }
+    }
+}
 module mr_fins() {
-    // PLACEHOLDER shape for the 1938 Kuhler finned beaver tail - refine from photos
-    if (REAR_FINS && TAIL > 0)
-        for (s = [-1, 1])
-            translate([L - TAIL, s * W * 0.28, HT - RR * 0.45])
-                rotate([90, 0, 0]) linear_extrude(1.6, center = true)
-                    polygon([[0, 0], [TAIL * 0.9, 0], [TAIL * 0.9, RR * 0.25],
-                             [TAIL * 0.25, RR * 0.95], [0, RR * 0.8]]);
+    if (REAR_FINS && NOSE_ON && END_B == "round") {
+        if (FLUTES == "rib" && FLUTE_COUNT > 0)          // side ribs carried round the tail
+            mr_tail_bands([for (k = [0:1:FLUTE_COUNT-1]) inch(FLUTE_Z0_IN + k * FLUTE_PITCH_IN)],
+                          inch(FLUTE_H_IN), FLUTE_D, ft(NOSE_SRC[0][0]) - ft(2));
+        if (len(TFIN_Z_L) > 0)                            // the Kuhler fins, level, wrapped round the tail
+            intersection() {
+                d = inch(TFIN_D_L);
+                difference() { mr_body_solid(-d, 0); mr_body_solid(WALL / 2, -5); }
+                translate([ft(TFIN_X0_L), -W, 0]) cube([L + 5 - ft(TFIN_X0_L), 2*W, TOP + 5]);
+                for (z = TFIN_Z_L) translate([-5, -W, inch(z)]) cube([L + 10, 2*W, inch(TFIN_H_L)]);
+            }
+    }
 }
 
 SKY_X0 = (END_B == "skytop") ? (SKY_START_FT > 0 ? ft(SKY_START_FT) : L - TAIL) : L;
